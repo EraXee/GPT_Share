@@ -1,0 +1,240 @@
+Sub DH_Update()
+
+File_Name1 = ThisWorkbook.Name
+UserGroupname = Sheets("Ustawienia").Cells(7, 2).Value
+Queryname = Sheets("Ustawienia").Cells(8, 2).Value
+
+StartDate = Sheets("Ustawienia").Cells(2, 2).Value - 1
+EndDate = Sheets("Ustawienia").Cells(2, 2).Value
+MPS_Time = Sheets("Ustawienia").Cells(8, 4).Value
+
+Dim SapGuiAuto
+Dim SetApp
+Dim Connection
+Dim Session
+Dim SessionNr As Long
+
+Set SapGuiAuto = GetObject("SAPGUI")
+Set SetApp = SapGuiAuto.GetScriptingEngine
+Set Connection = SetApp.Children(0)
+SessionNr = SearchGui
+
+    If SessionNr = 99 Then
+        Exit Sub
+    End If
+    
+Set Session = Connection.Children(CLng(SessionNr))
+
+' --------------- SQ01 choose standard user group --------
+
+Session.FindById("wnd[0]").maximize
+Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/NSQ01"
+
+Session.FindById("wnd[0]").sendVKey 0
+Session.FindById("wnd[0]/mbar/menu[5]/menu[0]").Select
+Session.FindById("wnd[1]/usr/radRAD1").Select
+Session.FindById("wnd[1]/tbar[0]/btn[2]").press
+
+' --------------- SQ01 choose user group -----------------
+
+Session.FindById("wnd[0]").sendVKey 0
+Session.FindById("wnd[0]/tbar[1]/btn[19]").press
+Session.FindById("wnd[1]/tbar[0]/btn[29]").press
+Session.FindById("wnd[2]/usr/subSUB_DYN0500:SAPLSKBH:0600/cntlCONTAINER1_FILT/shellcont/shell").SelectedRows = "0"
+Session.FindById("wnd[2]/usr/subSUB_DYN0500:SAPLSKBH:0600/btnAPP_WL_SING").press
+Session.FindById("wnd[2]/usr/subSUB_DYN0500:SAPLSKBH:0600/btn600_BUTTON").press
+Session.FindById("wnd[3]/usr/ssub%_SUBSCREEN_FREESEL:SAPLSSEL:1105/ctxt%%DYN001-LOW").Text = UserGroupname
+Session.FindById("wnd[3]/usr/ssub%_SUBSCREEN_FREESEL:SAPLSSEL:1105/ctxt%%DYN001-LOW").caretPosition = 12
+Session.FindById("wnd[3]").sendVKey 0
+Session.FindById("wnd[1]/usr/cntlGRID1/shellcont/shell").SelectedRows = "0"
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+
+Session.FindById("wnd[0]/usr/ctxtRS38R-QNUM").Text = Queryname
+Session.FindById("wnd[0]/tbar[1]/btn[8]").press
+
+Session.FindById("wnd[0]/usr/ctxtSP$00008-LOW").Text = "CZ22"
+Session.FindById("wnd[0]/usr/ctxtSP$00001-LOW").Text = StartDate
+Session.FindById("wnd[0]/usr/ctxtSP$00001-HIGH").Text = EndDate
+Session.FindById("wnd[0]/usr/ctxtSP$00002-LOW").Text = ""
+Session.FindById("wnd[0]/usr/rad%ALV").SetFocus
+Session.FindById("wnd[0]/usr/rad%ALV").Select
+Session.FindById("wnd[0]/usr/ctxtSP$00004-LOW").SetFocus
+Session.FindById("wnd[0]/usr/ctxtSP$00004-LOW").caretPosition = 0
+Session.FindById("wnd[0]/tbar[1]/btn[8]").press
+
+Session.FindById("wnd[0]/mbar/menu[0]/menu[4]/menu[1]").Select
+Session.FindById("wnd[1]/usr/cmbG_LISTBOX").SetFocus
+Session.FindById("wnd[1]/usr/cmbG_LISTBOX").Key = "33"
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+MessageText = Session.FindById("wnd[1]").Text
+
+
+If InStr(1, MessageText, "XXL") = 0 Then
+
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+End If
+
+
+Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[0,0]").Select
+Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[0,0]").SetFocus
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+
+
+' ------------------ Excel Copy/Paste -----------------------
+    
+    File_Name2 = ActiveWorkbook.Name
+    
+ Columns("H:H").Select
+    Selection.Cut
+    Columns("A:A").Select
+    Selection.Insert Shift:=xlToRight
+    Columns("E:H").Select
+    Selection.Delete Shift:=xlToLeft
+    Columns("G:H").Select
+    Selection.Delete Shift:=xlToLeft
+    
+    Set lastrow = Range("A:A")
+    lastrow = Application.WorksheetFunction.CountA(lastrow)
+    
+    Range("A1").Select
+    Selection.AutoFilter
+    ActiveWorkbook.Worksheets("Arkusz1").AutoFilter.Sort.SortFields.Clear
+    ActiveWorkbook.Worksheets("Arkusz1").AutoFilter.Sort.SortFields.Add Key:= _
+        Range("B1:B" & lastrow), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption _
+        :=xlSortNormal
+    With ActiveWorkbook.Worksheets("Arkusz1").AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    ActiveWorkbook.Worksheets("Arkusz1").AutoFilter.Sort.SortFields.Clear
+    ActiveWorkbook.Worksheets("Arkusz1").AutoFilter.Sort.SortFields.Add Key:= _
+        Range("A1:A" & lastrow), SortOn:=xlSortOnValues, Order:=xlAscending, DataOption _
+        :=xlSortNormal
+    With ActiveWorkbook.Worksheets("Arkusz1").AutoFilter.Sort
+        .Header = xlYes
+        .MatchCase = False
+        .Orientation = xlTopToBottom
+        .SortMethod = xlPinYin
+        .Apply
+    End With
+    
+    ActiveSheet.Range("$A$1:$F$" & lastrow).AutoFilter Field:=1, Criteria1:=Format(StartDate, "dd.mm.yyyy"), Operator:=xlAnd
+    Columns("B:B").Select
+    Selection.Find(What:=MPS_Time, After:=ActiveCell, LookIn:=xlFormulas, _
+        LookAt:=xlWhole, SearchOrder:=xlByRows, SearchDirection:=xlNext, _
+        MatchCase:=False, SearchFormat:=False).Activate
+    ActiveCell.Offset(-1, 0).Range("A1").Select
+    Range(Selection, Selection.End(xlUp).Offset(1, 0)).Select
+    ActiveCell.Activate
+    Selection.EntireRow.Delete
+    ActiveSheet.ShowAllData
+    Columns("A:F").EntireColumn.Select
+    Selection.Copy
+    
+    Windows(File_Name1).Activate
+    ActiveSheet.Paste Destination:=Worksheets("Deklaracje").Range("I:N")
+    
+' ------------------ Exit SQ01 -----------------------
+
+    Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/N"
+    Session.FindById("wnd[0]").sendVKey 0
+    
+End Sub
+
+Sub MPS_Raport_Update()
+
+File_Name1 = ThisWorkbook.Name
+
+UserGroupname = Sheets("Ustawienia").Cells(7, 2).Value
+Queryname = Sheets("Ustawienia").Cells(9, 2).Value
+Variantname = Sheets("Ustawienia").Cells(10, 2).Value
+
+
+Dim SapGuiAuto
+Dim SetApp
+Dim Connection
+Dim Session
+Dim SessionNr As Long
+
+Set SapGuiAuto = GetObject("SAPGUI")
+Set SetApp = SapGuiAuto.GetScriptingEngine
+Set Connection = SetApp.Children(0)
+SessionNr = SearchGui
+
+    If SessionNr = 99 Then
+        Exit Sub
+    End If
+    
+Set Session = Connection.Children(CLng(SessionNr))
+
+' --------------- SQ01 choose standard user group ---------------------
+
+Session.FindById("wnd[0]").maximize
+Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/NSQ01"
+
+Session.FindById("wnd[0]").sendVKey 0
+Session.FindById("wnd[0]/mbar/menu[5]/menu[0]").Select
+Session.FindById("wnd[1]/usr/radRAD1").Select
+Session.FindById("wnd[1]/tbar[0]/btn[2]").press
+
+' --------------- SQ01 choose user group ------------------------------
+
+Session.FindById("wnd[0]").sendVKey 0
+Session.FindById("wnd[0]/tbar[1]/btn[19]").press
+Session.FindById("wnd[1]/tbar[0]/btn[29]").press
+Session.FindById("wnd[2]/usr/subSUB_DYN0500:SAPLSKBH:0600/cntlCONTAINER1_FILT/shellcont/shell").SelectedRows = "0"
+Session.FindById("wnd[2]/usr/subSUB_DYN0500:SAPLSKBH:0600/btnAPP_WL_SING").press
+Session.FindById("wnd[2]/usr/subSUB_DYN0500:SAPLSKBH:0600/btn600_BUTTON").press
+Session.FindById("wnd[3]/usr/ssub%_SUBSCREEN_FREESEL:SAPLSSEL:1105/ctxt%%DYN001-LOW").Text = UserGroupname
+Session.FindById("wnd[3]/usr/ssub%_SUBSCREEN_FREESEL:SAPLSSEL:1105/ctxt%%DYN001-LOW").caretPosition = 12
+Session.FindById("wnd[3]").sendVKey 0
+Session.FindById("wnd[1]/usr/cntlGRID1/shellcont/shell").SelectedRows = "0"
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+
+Session.FindById("wnd[0]/usr/ctxtRS38R-QNUM").Text = Queryname
+Session.FindById("wnd[0]/tbar[1]/btn[17]").press
+Session.FindById("wnd[1]/usr/ctxtRS38R-VARIANT").Text = Variantname
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+Session.FindById("wnd[0]/usr/txtSP$00002-LOW").Text = Week
+Session.FindById("wnd[0]/tbar[1]/btn[8]").press
+Session.FindById("wnd[0]/usr/cntlCONTAINER/shellcont/shell").PressToolbarContextButton "&MB_EXPORT"
+Session.FindById("wnd[0]/usr/cntlCONTAINER/shellcont/shell").SelectContextMenuItem "&XXL"
+Session.FindById("wnd[1]/usr/cmbG_LISTBOX").SetFocus
+Session.FindById("wnd[1]/usr/cmbG_LISTBOX").Key = "33"
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+
+MessageText = Session.FindById("wnd[1]").Text
+
+
+If InStr(1, MessageText, "XXL") = 0 Then
+
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+End If
+
+
+Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[0,0]").Select
+Session.FindById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[0,0]").SetFocus
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+Session.FindById("wnd[1]/tbar[0]/btn[0]").press
+
+
+
+' ------------------ Excel Copy/Paste -----------------------
+    
+    File_Name2 = ActiveWorkbook.Name
+   
+    Columns("A:C").EntireColumn.Select
+    Selection.Copy
+    
+    Windows(File_Name1).Activate
+    ActiveSheet.Paste Destination:=Worksheets("SE16").Range("A:C")
+' ------------------ Exit SQ01 -----------------------
+
+    Session.FindById("wnd[0]/tbar[0]/okcd").Text = "/N"
+    Session.FindById("wnd[0]").sendVKey 0
+    
+End Sub
